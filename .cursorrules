@@ -1,0 +1,23 @@
+# Cursor Rules for Samwise Project
+
+## Documentation Policy
+
+- NEVER create new summary files (e.g., SUMMARY.md, IMPLEMENTATION_SUMMARY.md, etc.)
+- NEVER create additional README files beyond the main README.md
+- NEVER create .txt summary files
+- Keep documentation minimal and focused
+- Only update existing README.md or AGENT.md when needed
+- Do not create documentation for every change or feature
+
+## Allowed Documentation Files
+
+- README.md - Main project documentation
+- AGENT.md - Developer/agent guide
+- .cursorrules - This file
+
+## Code Changes
+
+- Focus on code implementation, not documentation
+- Keep commit messages concise
+- Prefer working code over extensive docs
+
