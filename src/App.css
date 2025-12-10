@@ -360,6 +360,26 @@ textarea[readonly] {
   cursor: default;
 }
 
+@keyframes inputStroke {
+  0% {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
+  }
+  60% {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
+  }
+  100% {
+    border-color: var(--border-color);
+    box-shadow: 0 0 0 0px rgba(102, 126, 234, 0);
+  }
+}
+
+textarea.input-stroke-animation {
+  animation: inputStroke 3s ease-out;
+  border-color: var(--accent-primary);
+}
+
 button {
   border: none;
   cursor: pointer;

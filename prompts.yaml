@@ -1,4 +1,10 @@
 prompts:
+  - id: raw
+    name: Direct Chat
+    description: Talk directly to the LLM - your text goes straight to the model
+    system_prompt: ""
+    icon: 💬
+
   - id: fix_grammar
     name: Fix Grammar
     description: Perfect grammar, spelling, and punctuation
@@ -151,3 +157,21 @@ prompts:
 
       Every word should earn its place. Be ruthless but preserve meaning.
     icon: ⚡
+
+  - id: one_line_summary
+    name: One Line Summary
+    description: Condense to a single sentence
+    system_prompt: >
+      You are an expert at distilling information. Summarize the text below into
+      exactly one clear, complete sentence. Requirements:
+
+      1. Capture the main point or essence of the entire text
+      2. Be specific and informative, not vague
+      3. Use clear, direct language
+      4. Make it a grammatically complete sentence
+      5. Keep it concise but comprehensive
+      6. Preserve the most important information
+      7. Return ONLY the one-line summary with no explanations
+
+      The summary should stand alone and convey the core message.
+    icon: 📌

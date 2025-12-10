@@ -41,7 +41,7 @@ impl Prompt {
     pub fn get_all_prompts() -> Vec<Prompt> {
         let prompts_path = Self::get_prompts_file_path();
 
-        match fs::read_to_string(&prompts_path) {
+        let mut prompts = match fs::read_to_string(&prompts_path) {
             Ok(content) => {
                 match serde_yaml::from_str::<PromptsFile>(&content) {
                     Ok(prompts_file) => {
@@ -58,7 +58,18 @@ impl Prompt {
                 eprintln!("✗ Failed to read prompts.yaml from {:?}: {}", prompts_path, e);
                 Self::get_default_prompts()
             }
-        }
+        };
+
+        // Ensure "raw" prompt is always first
+        prompts.sort_by(|a, b| {
+            match (a.id.as_str(), b.id.as_str()) {
+                ("raw", _) => std::cmp::Ordering::Less,
+                (_, "raw") => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
+
+        prompts
     }
 
     /// Copy default prompts.yaml to user config directory
@@ -97,6 +108,13 @@ impl Prompt {
     fn get_default_prompts() -> Vec<Prompt> {
         eprintln!("⚠ Using hardcoded default prompts as fallback");
         vec![
+            Prompt {
+                id: "raw".to_string(),
+                name: "Direct Chat".to_string(),
+                description: "Talk directly to the LLM - your text goes straight to the model".to_string(),
+                system_prompt: "".to_string(),
+                icon: "💬".to_string(),
+            },
             Prompt {
                 id: "fix_grammar".to_string(),
                 name: "Fix Grammar".to_string(),

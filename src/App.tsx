@@ -36,6 +36,7 @@ function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [claudeCliAvailable, setClaudeCliAvailable] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [showInputStroke, setShowInputStroke] = useState(false);
 
   useEffect(() => {
     loadPrompts();
@@ -152,7 +153,11 @@ function App() {
 
   function applyPrompt(promptId: string) {
     if (!inputText.trim()) {
-      alert("Please enter some text first!");
+      // Trigger stroke animation
+      setShowInputStroke(true);
+      setTimeout(() => {
+        setShowInputStroke(false);
+      }, 3000); // Show for 3 seconds, then fade out
       return;
     }
 
@@ -297,6 +302,7 @@ function App() {
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Paste or type your text here..."
               disabled={isLoading}
+              className={showInputStroke ? "input-stroke-animation" : ""}
             />
           </div>
 

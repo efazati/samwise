@@ -40,7 +40,12 @@ async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result
     let client = LLMClient::new(config.clone());
 
     // Process the text with the selected model asynchronously
-    let prompt_text = prompt.system_prompt.clone();
+    // For "raw" prompt, use empty system prompt to send text directly to LLM
+    let prompt_text = if prompt.id == "raw" {
+        "".to_string()
+    } else {
+        prompt.system_prompt.clone()
+    };
     let text_clone = text.clone();
     let model_id = config.selected_model.clone();
 
