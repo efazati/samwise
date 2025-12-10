@@ -140,9 +140,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           REPO="${{ github.repository }}"
           find artifacts -type f -print0 | while IFS= read -r -d '' file; do
-            relative=$(realpath --relative-to=artifacts "$file")
             gh release upload "$TAG" "$file" \
               --repo "$REPO" \
-              --name "$relative" \
               --clobber
           done
