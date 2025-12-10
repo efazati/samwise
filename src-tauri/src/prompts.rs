@@ -24,7 +24,7 @@ impl Prompt {
                 id: "improve_text".to_string(),
                 name: "Improve Text".to_string(),
                 description: "Make text clearer and smoother".to_string(),
-                system_prompt: "Please rewrite the text below to make it clearer and smoother, but keep the same meaning and overall tone. Use simple, everyday words (no fancy or technical vocabulary). Don't make it longer than necessary, and keep the style sounding like the original. Return only the improved version.".to_string(),
+                system_prompt: "Please rewrite the text below to make it clearer and smoother, but keep the same meaning. Use simple, everyday words (no fancy or technical vocabulary). Don't make it longer than necessary but you can make up to 50 percent longer, and keep the style sounding like the original. Return only the improved version.".to_string(),
                 icon: "✨".to_string(),
             },
             Prompt {
@@ -38,7 +38,7 @@ impl Prompt {
                 id: "expand".to_string(),
                 name: "Expand".to_string(),
                 description: "Add more detail and context".to_string(),
-                system_prompt: "Please expand on the text below by adding relevant details, examples, and context. Keep the original meaning and tone, but make it more comprehensive and informative.".to_string(),
+                system_prompt: "Please expand on the text below by adding relevant details. Keep the original meaning and tone without using complex words, but make it more comprehensive and informative. Return only the expanded version.".to_string(),
                 icon: "📖".to_string(),
             },
             Prompt {

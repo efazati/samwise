@@ -34,6 +34,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [claudeCliAvailable, setClaudeCliAvailable] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
     loadPrompts();
@@ -125,27 +126,48 @@ function App() {
     }
   }
 
-  async function applyPrompt(promptId: string) {
+  function applyPrompt(promptId: string) {
     if (!inputText.trim()) {
       alert("Please enter some text first!");
       return;
     }
 
+    // Set loading state first
     setIsLoading(true);
     setSelectedPrompt(promptId);
     setOutputText("");
+    setIsCancelled(false);
 
-    try {
-      const result = await invoke<string>("apply_prompt", {
+    // Use queueMicrotask to ensure React renders the loading UI before invoking backend
+    queueMicrotask(() => {
+      invoke<string>("apply_prompt", {
         promptId,
         text: inputText,
-      });
-      setOutputText(result);
-    } catch (error) {
-      setOutputText(`Error: ${error}`);
-    } finally {
-      setIsLoading(false);
-    }
+      })
+        .then((result) => {
+          // Only update output if not cancelled
+          if (!isCancelled) {
+            setOutputText(result);
+          }
+        })
+        .catch((error) => {
+          console.error("Error applying prompt:", error);
+          // Only show error if not cancelled
+          if (!isCancelled) {
+            setOutputText(`Error: ${error}`);
+          }
+        })
+        .finally(() => {
+          setIsLoading(false);
+          setIsCancelled(false);
+        });
+    });
+  }
+
+  function cancelOperation() {
+    setIsCancelled(true);
+    setIsLoading(false);
+    setOutputText("Operation cancelled by user.");
   }
 
   function clearAll() {
@@ -166,12 +188,31 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <header className="header">
-        <h1>Samwise</h1>
-        <p className="subtitle">
-          Transform your text with AI-powered prompts
-        </p>
+    <>
+      {/* Loading overlay at top level to ensure it's always visible */}
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="spinner"></div>
+            <p className="loading-title">
+              {selectedPrompt
+                ? `Processing with ${prompts.find(p => p.id === selectedPrompt)?.name || 'AI'}...`
+                : 'Processing...'}
+            </p>
+            <p className="loading-subtitle">Please wait, this may take a few seconds</p>
+            <button className="cancel-btn" onClick={cancelOperation}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="container">
+        <header className="header">
+          <h1>Samwise</h1>
+          <p className="subtitle">
+            Transform your text with AI-powered prompts
+          </p>
         <div className="model-indicator">
           <span className="model-label">Model:</span>
           <span className="model-name">{getModelDisplayName(selectedModel)}</span>
@@ -236,18 +277,6 @@ function App() {
           )}
         </div>
       </div>
-
-      {isLoading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <p>
-            {selectedPrompt
-              ? `Processing with ${prompts.find(p => p.id === selectedPrompt)?.name || 'AI'}...`
-              : 'Processing...'}
-          </p>
-          <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>Please wait, this may take a few seconds</p>
-        </div>
-      )}
 
       {showSettings && config && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
@@ -423,7 +452,8 @@ function App() {
           </div>
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }
 

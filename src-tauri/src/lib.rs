@@ -16,7 +16,7 @@ fn get_prompts() -> Vec<Prompt> {
 }
 
 #[tauri::command]
-fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result<String, String> {
+async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result<String, String> {
     println!("=== Apply Prompt Debug ===");
     println!("Prompt ID: {}", prompt_id);
     println!("Text length: {} chars", text.len());
@@ -39,8 +39,14 @@ fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result<Strin
     // Create LLM client
     let client = LLMClient::new(config.clone());
 
-    // Process the text with the selected model
-    let result = client.process_text(&prompt.system_prompt, &text, &config.selected_model);
+    // Process the text with the selected model asynchronously
+    let prompt_text = prompt.system_prompt.clone();
+    let text_clone = text.clone();
+    let model_id = config.selected_model.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        client.process_text(&prompt_text, &text_clone, &model_id)
+    }).await.map_err(|e| format!("Task join error: {}", e))?;
 
     // Process the result
     match result {

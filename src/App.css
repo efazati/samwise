@@ -234,38 +234,86 @@ button {
 }
 
 .loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.75);
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999 !important;
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: all !important;
+}
+
+.loading-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 1.5rem;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-  cursor: wait;
+  padding: 2.5rem 3rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.loading-overlay p {
+.loading-title {
   color: white;
   font-size: 1.3rem;
   font-weight: 600;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0;
   animation: pulse 2s ease-in-out infinite;
 }
 
+.loading-subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  margin: -0.5rem 0 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
 .spinner {
-  width: 60px;
-  height: 60px;
-  border: 5px solid rgba(255, 255, 255, 0.2);
+  width: 70px;
+  height: 70px;
+  border: 6px solid rgba(255, 255, 255, 0.2);
   border-top-color: #646cff;
+  border-right-color: #646cff;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  box-shadow: 0 0 20px rgba(100, 108, 255, 0.3);
+  animation: spin 0.8s linear infinite;
+  box-shadow: 0 0 30px rgba(100, 108, 255, 0.4);
+}
+
+.cancel-btn {
+  padding: 0.75rem 2rem;
+  background-color: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.cancel-btn:hover {
+  background-color: rgba(220, 38, 38, 1);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.cancel-btn:active {
+  transform: translateY(0);
 }
 
 @keyframes pulse {
@@ -280,6 +328,15 @@ button {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
