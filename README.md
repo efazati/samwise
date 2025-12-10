@@ -2,6 +2,18 @@
 
 A lightweight, always-available desktop utility for text transformation with AI. Select text anywhere, press a hotkey, and transform it instantly.
 
+## Screenshots
+
+<div align="center">
+
+### Main Interface
+![Samwise Main Interface](screenshots/samwise.png)
+
+### Settings
+![Samwise Settings](screenshots/settings.png)
+
+</div>
+
 ## Quick Start
 
 ```bash
