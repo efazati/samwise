@@ -90,53 +90,31 @@ impl LLMClient {
         println!("   System prompt: {} chars", request.system_prompt.len());
         println!("   User content: {} chars", request.user_content.len());
 
-        // Pass text via stdin to properly handle multi-line content
-        // Claude CLI reads from stdin when -p is used without an argument
-        let output = if request.system_prompt.is_empty() {
-            // Raw mode: send user content via stdin
-            Command::new("claude")
-                .arg("-p")
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("Failed to spawn Claude CLI: {}. Make sure Claude CLI is installed (brew install claude)", e))
-                .and_then(|mut child| {
-                    use std::io::Write;
-                    if let Some(mut stdin) = child.stdin.take() {
-                        stdin.write_all(request.user_content.as_bytes())
-                            .map_err(|e| format!("Failed to write to Claude CLI stdin: {}", e))?;
-                        drop(stdin);
-                    }
-                    child.wait_with_output()
-                        .map_err(|e| format!("Failed to wait for Claude CLI: {}", e))
-                })?
+        // Original behavior: pass the user content as command-line argument.
+        // Streaming via stdin caused issues, so we fall back to this approach.
+        let enhanced_prompt = if request.system_prompt.is_empty() {
+            "".to_string()
         } else {
-            // Enhanced mode: add explicit instruction to avoid conversational responses
-            let enhanced_prompt = format!(
+            format!(
                 "{}\n\nIMPORTANT: Return ONLY the processed text. Do not include any explanations, meta-commentary, questions, or conversational text. Just return the result directly.",
                 request.system_prompt
-            );
+            )
+        };
 
+        let output = if enhanced_prompt.is_empty() {
             Command::new("claude")
                 .arg("-p")
+                .arg(&request.user_content)
+                .output()
+                .map_err(|e| format!("Failed to execute Claude CLI: {}. Make sure Claude CLI is installed (brew install claude)", e))?
+        } else {
+            Command::new("claude")
+                .arg("-p")
+                .arg(&request.user_content)
                 .arg("--system-prompt")
                 .arg(&enhanced_prompt)
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| format!("Failed to spawn Claude CLI: {}. Make sure Claude CLI is installed (brew install claude)", e))
-                .and_then(|mut child| {
-                    use std::io::Write;
-                    if let Some(mut stdin) = child.stdin.take() {
-                        stdin.write_all(request.user_content.as_bytes())
-                            .map_err(|e| format!("Failed to write to Claude CLI stdin: {}", e))?;
-                        drop(stdin);
-                    }
-                    child.wait_with_output()
-                        .map_err(|e| format!("Failed to wait for Claude CLI: {}", e))
-                })?
+                .output()
+                .map_err(|e| format!("Failed to execute Claude CLI: {}. Make sure Claude CLI is installed (brew install claude)", e))?
         };
 
         if output.status.success() {

@@ -92,7 +92,11 @@ jobs:
           fi
 
           cp "$BINARY_SRC" "$ARTIFACT_DIR/$BINARY_NAME"
-          cp -r "$TARGET_DIR/bundle" "$ARTIFACT_DIR/"
+
+          # Copy bundle directory if it exists (optional, only created when bundling is enabled)
+          if [ -d "$TARGET_DIR/bundle" ]; then
+            cp -r "$TARGET_DIR/bundle" "$ARTIFACT_DIR/"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -140,47 +144,3 @@ jobs:
               --name "$relative" \
               --clobber
           done
-
-      - name: Upload binary artifact (macOS aarch64)
-        if: matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin'
-        run: |
-          cp "./src-tauri/target/aarch64-apple-darwin/release/samwise" "./samwise-${{ github.ref_name }}-aarch64-macos"
-          gh release upload "${{ github.ref_name }}" \
-            "./samwise-${{ github.ref_name }}-aarch64-macos" \
-            --clobber \
-            --repo "${{ github.repository }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binary artifact (macOS x86_64)
-        if: matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin'
-        run: |
-          cp "./src-tauri/target/x86_64-apple-darwin/release/samwise" "./samwise-${{ github.ref_name }}-x86_64-macos"
-          gh release upload "${{ github.ref_name }}" \
-            "./samwise-${{ github.ref_name }}-x86_64-macos" \
-            --clobber \
-            --repo "${{ github.repository }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binary artifact (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          cp "./src-tauri/target/release/samwise" "./samwise-${{ github.ref_name }}-x86_64-linux"
-          gh release upload "${{ github.ref_name }}" \
-            "./samwise-${{ github.ref_name }}-x86_64-linux" \
-            --clobber \
-            --repo "${{ github.repository }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binary artifact (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: |
-          copy "./src-tauri/target/release/samwise.exe" "./samwise-${{ github.ref_name }}-x86_64-windows.exe"
-          gh release upload "${{ github.ref_name }}" \
-            "./samwise-${{ github.ref_name }}-x86_64-windows.exe" \
-            --clobber \
-            --repo "${{ github.repository }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
