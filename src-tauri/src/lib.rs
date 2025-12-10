@@ -101,82 +101,90 @@ pub fn run() {
             }
 
             // Set up system tray using StatusNotifier (for Linux compatibility with Polybar, i3bar, etc.)
-            println!("Setting up system tray...");
-            println!("Desktop session: {:?}", std::env::var("XDG_CURRENT_DESKTOP"));
-            println!("Session type: {:?}", std::env::var("XDG_SESSION_TYPE"));
+            #[cfg(target_os = "linux")]
+            {
+                println!("Setting up system tray...");
+                println!("Desktop session: {:?}", std::env::var("XDG_CURRENT_DESKTOP"));
+                println!("Session type: {:?}", std::env::var("XDG_SESSION_TYPE"));
 
-            // Create tray service
-            use ksni::TrayService;
+                // Create tray service
+                use ksni::TrayService;
 
-            struct SamwiseTray {
-                app_handle: AppHandle,
-            }
-
-            impl ksni::Tray for SamwiseTray {
-                fn icon_name(&self) -> String {
-                    // Use a standard icon that exists on most Linux systems
-                    "accessories-text-editor".to_string()
+                struct SamwiseTray {
+                    app_handle: AppHandle,
                 }
 
-                fn title(&self) -> String {
-                    "Samwise".to_string()
-                }
+                impl ksni::Tray for SamwiseTray {
+                    fn icon_name(&self) -> String {
+                        // Use a standard icon that exists on most Linux systems
+                        "accessories-text-editor".to_string()
+                    }
 
-                fn tool_tip(&self) -> ksni::ToolTip {
-                    ksni::ToolTip {
-                        icon_name: "accessories-text-editor".to_string(),
-                        title: "Samwise - Press Ctrl+Shift+Space".to_string(),
-                        description: "Click to open or use Ctrl+Shift+Space".to_string(),
-                        ..Default::default()
+                    fn title(&self) -> String {
+                        "Samwise".to_string()
+                    }
+
+                    fn tool_tip(&self) -> ksni::ToolTip {
+                        ksni::ToolTip {
+                            icon_name: "accessories-text-editor".to_string(),
+                            title: "Samwise - Press Ctrl+Shift+Space".to_string(),
+                            description: "Click to open or use Ctrl+Shift+Space".to_string(),
+                            ..Default::default()
+                        }
+                    }
+
+                    fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
+                        use ksni::menu::*;
+                        vec![
+                            StandardItem {
+                                label: "Show Samwise".to_string(),
+                                activate: Box::new(|this: &mut Self| {
+                                    println!("Tray menu: Show clicked");
+                                    if let Some(window) = this.app_handle.get_webview_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.set_focus();
+                                    }
+                                }),
+                                ..Default::default()
+                            }.into(),
+                            MenuItem::Separator,
+                            StandardItem {
+                                label: "Quit".to_string(),
+                                activate: Box::new(|_this: &mut Self| {
+                                    println!("Tray menu: Quit clicked");
+                                    std::process::exit(0);
+                                }),
+                                ..Default::default()
+                            }.into(),
+                        ]
+                    }
+
+                    fn activate(&mut self, _x: i32, _y: i32) {
+                        println!("Tray icon: Activated (clicked)");
+                        if let Some(window) = self.app_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                     }
                 }
 
-                fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
-                    use ksni::menu::*;
-                    vec![
-                        StandardItem {
-                            label: "Show Samwise".to_string(),
-                            activate: Box::new(|this: &mut Self| {
-                                println!("Tray menu: Show clicked");
-                                if let Some(window) = this.app_handle.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
-                            }),
-                            ..Default::default()
-                        }.into(),
-                        MenuItem::Separator,
-                        StandardItem {
-                            label: "Quit".to_string(),
-                            activate: Box::new(|_this: &mut Self| {
-                                println!("Tray menu: Quit clicked");
-                                std::process::exit(0);
-                            }),
-                            ..Default::default()
-                        }.into(),
-                    ]
-                }
+                let tray_service = TrayService::new(SamwiseTray {
+                    app_handle: app.handle().clone(),
+                });
 
-                fn activate(&mut self, _x: i32, _y: i32) {
-                    println!("Tray icon: Activated (clicked)");
-                    if let Some(window) = self.app_handle.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
+                // Spawn tray service in background thread
+                std::thread::spawn(move || {
+                    println!("✓ System tray icon created successfully (StatusNotifier protocol)");
+                    if let Err(e) = tray_service.run() {
+                        eprintln!("⚠ System tray service error: {}", e);
                     }
-                }
+                });
             }
 
-            let tray_service = TrayService::new(SamwiseTray {
-                app_handle: app.handle().clone(),
-            });
-
-            // Spawn tray service in background thread
-            std::thread::spawn(move || {
-                println!("✓ System tray icon created successfully (StatusNotifier protocol)");
-                if let Err(e) = tray_service.run() {
-                    eprintln!("⚠ System tray service error: {}", e);
-                }
-            });
+            #[cfg(not(target_os = "linux"))]
+            {
+                println!("✓ System tray not needed on this platform (using native tray support)");
+            }
 
             // Keep app running in background when window is closed
             let window = app.get_webview_window("main").unwrap();
