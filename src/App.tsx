@@ -176,6 +176,25 @@ function App() {
     setSelectedPrompt(null);
   }
 
+  async function copyToClipboard() {
+    if (!outputText) return;
+
+    try {
+      await navigator.clipboard.writeText(outputText);
+      // You could add a toast notification here
+      const btn = document.querySelector('.copy-btn');
+      if (btn) {
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy';
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      alert('Failed to copy to clipboard');
+    }
+  }
+
   function getModelDisplayName(modelId: string): string {
     const modelNames: Record<string, string> = {
       "gpt-4": "GPT-4",
@@ -208,19 +227,15 @@ function App() {
       )}
 
       <main className="container">
-        <header className="header">
-          <h1>Samwise</h1>
-          <p className="subtitle">
-            Transform your text with AI-powered prompts
-          </p>
-        <div className="model-indicator">
-          <span className="model-label">Model:</span>
-          <span className="model-name">{getModelDisplayName(selectedModel)}</span>
-        </div>
-      </header>
-
       <div className="content">
         <div className="prompts-section">
+          <div className="sidebar-header">
+            <h1>✨ Samwise</h1>
+            <div className="model-indicator" title="Currently selected AI model">
+              <span className="model-name">{getModelDisplayName(selectedModel)}</span>
+            </div>
+          </div>
+
           <h2>Choose an Action</h2>
           <div className="prompts-grid">
             {prompts.map((prompt) => (
@@ -231,10 +246,10 @@ function App() {
                 }`}
                 onClick={() => applyPrompt(prompt.id)}
                 disabled={isLoading}
+                title={prompt.description}
               >
                 <span className="prompt-icon">{prompt.icon}</span>
                 <span className="prompt-name">{prompt.name}</span>
-                <span className="prompt-description">{prompt.description}</span>
               </button>
             ))}
           </div>
@@ -260,13 +275,23 @@ function App() {
                 <label>
                   <strong>Result</strong>
                 </label>
-                <button
-                  className="clear-btn"
-                  onClick={clearAll}
-                  disabled={isLoading}
-                >
-                  Clear
-                </button>
+                <div className="output-actions">
+                  <button
+                    className="copy-btn"
+                    onClick={copyToClipboard}
+                    disabled={isLoading}
+                    title="Copy to clipboard"
+                  >
+                    📋 Copy
+                  </button>
+                  <button
+                    className="clear-btn"
+                    onClick={clearAll}
+                    disabled={isLoading}
+                  >
+                    🗑️ Clear
+                  </button>
+                </div>
               </div>
               <textarea
                 value={outputText}
