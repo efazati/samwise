@@ -96,111 +96,118 @@ pub fn run() {
 
             // Set up global shortcut with configured hotkey
             let app_handle = app.handle().clone();
-            if let Err(e) = hotkey::setup_global_shortcut(&app_handle, &config.global_hotkey) {
-                eprintln!("Failed to register global shortcut: {}", e);
+            match hotkey::setup_global_shortcut(&app_handle, &config.global_hotkey) {
+                Ok(_) => println!("✓ Global hotkey registered: {}", config.global_hotkey),
+                Err(e) => {
+                    eprintln!("⚠ Failed to register global shortcut '{}': {}", config.global_hotkey, e);
+                    eprintln!("  → Try a different hotkey in Settings (e.g., Super+Space, Ctrl+Alt+S)");
+                    eprintln!("  → The app will still work - you can open it from the tray icon or menu");
+                }
             }
 
-            // Set up system tray using StatusNotifier (for Linux compatibility with Polybar, i3bar, etc.)
-            #[cfg(target_os = "linux")]
-            {
-                println!("Setting up system tray...");
-                println!("Desktop session: {:?}", std::env::var("XDG_CURRENT_DESKTOP"));
-                println!("Session type: {:?}", std::env::var("XDG_SESSION_TYPE"));
+            // Set up system tray using Tauri's built-in support (works without snixembed!)
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::{TrayIconBuilder, MouseButton};
 
-                // Create tray service
-                use ksni::TrayService;
+            let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_lowercase();
+            let i3_socket = std::env::var("I3SOCK").is_ok();
 
-                struct SamwiseTray {
-                    app_handle: AppHandle,
-                }
+            if desktop.contains("i3") || i3_socket {
+                println!("✓ i3 window manager detected!");
+                println!("  → Tray icon will appear (no snixembed needed!)");
+                println!("  → TIP: Use i3 scratchpad for quick access:");
+                println!("     Add to ~/.config/i3/config:");
+                println!("       for_window [class=\"samwise\"] move scratchpad");
+                println!("       bindsym $mod+grave [class=\"samwise\"] scratchpad show");
+            }
 
-                impl ksni::Tray for SamwiseTray {
-                    fn icon_name(&self) -> String {
-                        // Use a standard icon that exists on most Linux systems
-                        "accessories-text-editor".to_string()
+            // Get the hotkey from config for the tooltip
+            let hotkey_text = config.global_hotkey.clone();
+            let app_handle = app.handle();
+
+            // Create tray menu with hotkey hint only on show
+            let show_label = format!("Show Window ({})", hotkey_text);
+            let show_item = MenuItem::with_id(app_handle, "show", show_label, true, None::<&str>)?;
+            let hide_item = MenuItem::with_id(app_handle, "hide", "Hide Window (Close window)", true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app_handle, "quit", "Quit", true, None::<&str>)?;
+
+            let menu = Menu::with_items(app_handle, &[&show_item, &hide_item, &quit_item])?;
+
+            // Build tray icon with tooltip showing the hotkey
+            let tooltip_text = format!("Samwise - Press {} to show (Close window to hide)", hotkey_text);
+
+            // Load the samwise icon for tray
+            // The icon should be loaded from tauri.conf.json bundle configuration
+            // We put 32x32.png first in the icon list since tray icons need PNG format
+            let tray_icon = {
+                // The default_window_icon() uses the first icon from tauri.conf.json
+                // We've configured 32x32.png to be first, which should work for tray icons
+                match app.default_window_icon() {
+                    Some(icon) => {
+                        println!("✓ Using window icon for tray (from tauri.conf.json - should be 32x32.png)");
+                        icon.clone()
                     }
-
-                    fn title(&self) -> String {
-                        "Samwise".to_string()
-                    }
-
-                    fn tool_tip(&self) -> ksni::ToolTip {
-                        ksni::ToolTip {
-                            icon_name: "accessories-text-editor".to_string(),
-                            title: "Samwise - Press Ctrl+Shift+Space".to_string(),
-                            description: "Click to open or use Ctrl+Shift+Space".to_string(),
-                            ..Default::default()
-                        }
-                    }
-
-                    fn menu(&self) -> Vec<ksni::MenuItem<Self>> {
-                        use ksni::menu::*;
-                        vec![
-                            StandardItem {
-                                label: "Show Samwise".to_string(),
-                                activate: Box::new(|this: &mut Self| {
-                                    println!("Tray menu: Show clicked");
-                                    if let Some(window) = this.app_handle.get_webview_window("main") {
-                                        let _ = window.show();
-                                        let _ = window.set_focus();
-                                    }
-                                }),
-                                ..Default::default()
-                            }.into(),
-                            MenuItem::Separator,
-                            StandardItem {
-                                label: "Quit".to_string(),
-                                activate: Box::new(|_this: &mut Self| {
-                                    println!("Tray menu: Quit clicked");
-                                    std::process::exit(0);
-                                }),
-                                ..Default::default()
-                            }.into(),
-                        ]
-                    }
-
-                    fn activate(&mut self, _x: i32, _y: i32) {
-                        println!("Tray icon: Activated (clicked)");
-                        if let Some(window) = self.app_handle.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
+                    None => {
+                        eprintln!("⚠ No default window icon available");
+                        // This shouldn't happen, but provide a fallback
+                        panic!("No window icon available - check tauri.conf.json icon configuration");
                     }
                 }
+            };
 
-                let tray_service = TrayService::new(SamwiseTray {
-                    app_handle: app.handle().clone(),
-                });
-
-                // Spawn tray service in background thread
-                std::thread::spawn(move || {
-                    println!("✓ System tray icon created successfully (StatusNotifier protocol)");
-                    if let Err(e) = tray_service.run() {
-                        eprintln!("⚠ System tray service error: {}", e);
+            let _tray = TrayIconBuilder::new()
+                .menu(&menu)
+                .icon(tray_icon)
+                .tooltip(&tooltip_text)
+                .on_menu_event(|app_handle, event| {
+                    match event.id().as_ref() {
+                        "show" => {
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "hide" => {
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                        }
+                        "quit" => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
                     }
-                });
-            }
+                })
+                .on_tray_icon_event(|tray, event| {
+                    use tauri::tray::TrayIconEvent;
+                    if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, .. }) {
+                        let app_handle = tray.app_handle();
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(app_handle)?;
 
-            #[cfg(not(target_os = "linux"))]
-            {
-                println!("✓ System tray not needed on this platform (using native tray support)");
-            }
+            println!("✓ System tray icon created (using Tauri native - no snixembed needed!)");
 
-            // Keep app running in background when window is closed
+            // Prevent window from closing - hide it instead
             let window = app.get_webview_window("main").unwrap();
-            let app_handle_close = app.handle().clone();
+            let app_handle_for_close = app.handle().clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    // Prevent the window from closing, just hide it
-                    if let Some(window) = app_handle_close.get_webview_window("main") {
-                        window.hide().unwrap();
-                    }
+                    println!("Window close requested - hiding instead of closing");
                     api.prevent_close();
+                    if let Some(win) = app_handle_for_close.get_webview_window("main") {
+                        let _ = win.hide();
+                    }
                 }
             });
-
-            // Hide window on startup (runs in background with tray icon)
-            window.hide()?;
 
             Ok(())
         })

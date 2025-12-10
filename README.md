@@ -54,7 +54,7 @@ When you launch Samwise:
 
 Workflow:
 1. **Select and copy text** anywhere (email, document, webpage, etc.)
-2. **Press hotkey**: `Cmd/Ctrl + Shift + Space`
+2. **Press hotkey**: `Super+Alt+S` (default)
 3. **Window appears** with your clipboard text loaded
 4. **Choose an action**: Click a prompt (Fix Grammar, Summarize, etc.)
 5. **Get instant results**: AI transforms your text
@@ -171,7 +171,7 @@ System tray support varies by desktop environment:
 - **Other DEs**: Install `sudo apt-get install libappindicator3-1 gir1.2-appindicator3-0.1`
 - **If tray still doesn't work**: The app works perfectly with just the hotkey!
 
-Note: The app is fully functional even without a visible tray icon. Use `Ctrl+Shift+Space` to show it and `Ctrl+Q` to quit.
+Note: The app is fully functional even without a visible tray icon. Use `Super+Alt+S` to show it and `Ctrl+Q` to quit.
 
 **Actions not working?**
 - Configure LLM in Settings (Claude CLI or API keys)

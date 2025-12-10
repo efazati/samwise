@@ -1,6 +1,7 @@
 // LLM Client for various providers
 use crate::config::AppConfig;
 use std::process::Command;
+use serde_json::json;
 
 pub struct LLMClient {
     config: AppConfig,
@@ -13,7 +14,22 @@ impl LLMClient {
 
     pub fn process_text(&self, prompt: &str, text: &str, model_id: &str) -> Result<String, String> {
         match model_id {
-            // Claude models - use CLI if enabled
+            // AtlasCloud models MUST be checked FIRST (before plain claude/gpt models)
+            // This includes OpenAI, Anthropic Claude, DeepSeek, and Google models via AtlasCloud
+            // Models containing "/" are AtlasCloud models (e.g., "openai/gpt-5.1", "anthropic/claude-3-5-sonnet")
+            id if id.contains("/") ||
+                  id == "openai/gpt-5.1" ||
+                  id == "deepseek-ai/deepseek-v3.2-speciale" ||
+                  id == "openai/gpt-5-mini-developer" ||
+                  id == "google/gemini-2.5-flash" ||
+                  id.starts_with("anthropic/claude") => {
+                if let Some(api_key) = &self.config.llm.atlascloud_api_key {
+                    self.call_atlascloud_api(prompt, text, api_key, id)
+                } else {
+                    Err("No AtlasCloud API key configured".to_string())
+                }
+            }
+            // Plain Claude models (without "/" prefix) - use CLI if enabled
             id if id.starts_with("claude") => {
                 if self.config.llm.use_claude_cli {
                     self.call_claude_cli(prompt, text)
@@ -23,7 +39,7 @@ impl LLMClient {
                     Err("Claude CLI is disabled and no Anthropic API key configured".to_string())
                 }
             }
-            // OpenAI models
+            // Plain OpenAI models (without "/" prefix, not AtlasCloud)
             id if id.starts_with("gpt") => {
                 if let Some(api_key) = &self.config.llm.openai_api_key {
                     self.call_openai_api(prompt, text, api_key, id)
@@ -109,6 +125,120 @@ impl LLMClient {
             You can add your OpenAI API key in Settings.",
             prompt, text
         ))
+    }
+
+    fn call_atlascloud_api(&self, prompt: &str, text: &str, api_key: &str, model_id: &str) -> Result<String, String> {
+        println!("📤 Calling AtlasCloud API...");
+        println!("   Model: {}", model_id);
+
+        // Create the full prompt
+        let full_prompt = format!(
+            "{}\n\n\
+            TEXT TO PROCESS:\n\
+            \"\"\"\n\
+            {}\n\
+            \"\"\"\n\n\
+            Please provide only the processed text without any explanations or meta-commentary.",
+            prompt, text
+        );
+
+        // Build the request body using chat/completions format
+        let request_body = json!({
+            "model": model_id,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": full_prompt
+                }
+            ],
+            "max_tokens": 64000,
+            "temperature": 1,
+            "stream": false
+        });
+
+        // Create a blocking runtime for the HTTP request
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("Failed to create runtime: {}", e))?;
+
+        let result = rt.block_on(async {
+            let client = reqwest::Client::new();
+            let response = client
+                .post("https://api.atlascloud.ai/v1/chat/completions")
+                .header("Authorization", format!("Bearer {}", api_key))
+                .header("Content-Type", "application/json")
+                .json(&request_body)
+                .send()
+                .await
+                .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                return Err(format!("AtlasCloud API error ({}): {}", status, error_text));
+            }
+
+            // Parse response as JSON
+            let json_response: serde_json::Value = response
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            // Extract text from AtlasCloud response structure
+            // Response can be either:
+            // 1. Standard chat/completions format: choices[0].message.content
+            // 2. AtlasCloud format: output[0].content[0].text
+            let result = json_response
+                .get("choices")
+                .and_then(|choices| choices.as_array())
+                .and_then(|arr| arr.get(0))
+                .and_then(|choice| choice.get("message"))
+                .and_then(|msg| msg.get("content"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    // Try AtlasCloud-specific format: output[0].content[0].text
+                    json_response
+                        .get("output")
+                        .and_then(|output| output.as_array())
+                        .and_then(|arr| arr.get(0))
+                        .and_then(|msg| msg.get("content"))
+                        .and_then(|content| content.as_array())
+                        .and_then(|arr| arr.get(0))
+                        .and_then(|item| item.get("text"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
+                .or_else(|| {
+                    // Fallback: try direct text fields
+                    json_response
+                        .get("text")
+                        .or_else(|| json_response.get("content"))
+                        .or_else(|| json_response.get("message"))
+                        .and_then(|v| {
+                            match v {
+                                serde_json::Value::String(s) => Some(s.clone()),
+                                serde_json::Value::Object(obj) => {
+                                    obj.get("content")
+                                        .or_else(|| obj.get("text"))
+                                        .and_then(|v| v.as_str())
+                                        .map(|s| s.to_string())
+                                }
+                                _ => None,
+                            }
+                        })
+                })
+                .ok_or_else(|| {
+                    format!(
+                        "Unexpected response format. Response: {}",
+                        serde_json::to_string_pretty(&json_response).unwrap_or_default()
+                    )
+                })?;
+
+            Ok(result)
+        })?;
+
+        println!("📥 AtlasCloud response received ({} chars)", result.len());
+        Ok(result)
     }
 }
 

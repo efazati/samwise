@@ -13,20 +13,23 @@ pub fn setup_global_shortcut(app: &AppHandle, hotkey: &str) -> Result<(), Box<dy
     let app_handle = app.clone();
     let hotkey_str = hotkey.to_string();
 
+    // Set up the callback first
     app.global_shortcut().on_shortcut(hotkey, move |_app, _shortcut, _event| {
         println!("Global shortcut triggered!");
 
-        // Get clipboard content
-        let clipboard_text = match app_handle.clipboard().read_text() {
-            Ok(text) => text,
-            Err(e) => {
-                eprintln!("Failed to read clipboard: {}", e);
-                String::new()
-            }
-        };
-
-        // Show and focus the window
         if let Some(window) = app_handle.get_webview_window("main") {
+            // Only show the window (don't toggle - closing window hides it)
+            println!("Showing window via hotkey");
+
+            // Get clipboard content
+            let clipboard_text = match app_handle.clipboard().read_text() {
+                Ok(text) => text,
+                Err(e) => {
+                    eprintln!("Failed to read clipboard: {}", e);
+                    String::new()
+                }
+            };
+
             if let Err(e) = window.show() {
                 eprintln!("Failed to show window: {}", e);
             }
@@ -42,10 +45,13 @@ pub fn setup_global_shortcut(app: &AppHandle, hotkey: &str) -> Result<(), Box<dy
     })?;
 
     // Register the shortcut
-    let shortcut_obj: Shortcut = hotkey_str.parse()?;
-    app.global_shortcut().register(shortcut_obj)?;
+    let shortcut_obj: Shortcut = hotkey_str.parse()
+        .map_err(|e| format!("Failed to parse hotkey '{}': {}. Try: Super+Space, Ctrl+Alt+S, or Super+S", hotkey, e))?;
 
-    println!("Global shortcut registered successfully!");
+    app.global_shortcut().register(shortcut_obj)
+        .map_err(|e| format!("Failed to register hotkey '{}': {}. This hotkey may be in use by another application or your system.", hotkey, e))?;
+
+    println!("✓ Global shortcut registered successfully: {}", hotkey);
 
     Ok(())
 }

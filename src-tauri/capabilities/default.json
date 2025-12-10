@@ -5,6 +5,17 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:window:allow-create",
+    "core:window:allow-center",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-always-on-top",
+    "core:webview:allow-webview-position",
+    "core:webview:allow-webview-size",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
     "opener:default"
   ]
 }

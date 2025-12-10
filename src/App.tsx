@@ -14,6 +14,7 @@ interface Prompt {
 interface LLMConfig {
   openai_api_key: string | null;
   anthropic_api_key: string | null;
+  atlascloud_api_key: string | null;
   use_claude_cli: boolean;
   claude_cli_model: string;
 }
@@ -54,9 +55,19 @@ function App() {
       setSelectedModel(newModel);
       console.log("LLM Model selected:", newModel);
 
-      // Save to config
-      if (config) {
-        const newConfig = { ...config, selected_model: newModel };
+      // Save to config - load config first if not already loaded
+      let currentConfig = config;
+      if (!currentConfig) {
+        try {
+          currentConfig = await invoke<AppConfig>("get_config");
+          setConfig(currentConfig);
+        } catch (error) {
+          console.error("Failed to load config for saving:", error);
+        }
+      }
+
+      if (currentConfig) {
+        const newConfig = { ...currentConfig, selected_model: newModel };
         await saveConfig(newConfig);
       }
     });
@@ -115,14 +126,27 @@ function App() {
   async function updateHotkey(newHotkey: string) {
     if (!config) return;
 
+    if (!newHotkey.trim()) {
+      alert("Please enter a valid hotkey combination");
+      return;
+    }
+
     try {
       await invoke("update_global_shortcut", { newHotkey });
       const newConfig = { ...config, global_hotkey: newHotkey };
       setConfig(newConfig);
-      alert("Hotkey updated successfully!");
+      alert(`Hotkey updated successfully!\n\nTry pressing: ${newHotkey}`);
     } catch (error) {
       console.error("Failed to update hotkey:", error);
-      alert(`Failed to update hotkey: ${error}`);
+      const errorMsg = String(error);
+      alert(
+        `Failed to register hotkey: ${errorMsg}\n\n` +
+        `This hotkey may be in use by another app or your system.\n\n` +
+        `Try these reliable alternatives:\n` +
+        `• Super+Space\n` +
+        `• Ctrl+Alt+S\n` +
+        `• Super+S`
+      );
     }
   }
 
@@ -202,6 +226,13 @@ function App() {
       "claude-3-5-sonnet": "Claude 3.5 Sonnet",
       "claude-3-opus": "Claude 3 Opus",
       "claude-3-haiku": "Claude 3 Haiku",
+      "openai/gpt-5.1": "GPT-5.1 (AtlasCloud)",
+      "deepseek-ai/deepseek-v3.2-speciale": "DeepSeek V3.2 (AtlasCloud)",
+      "openai/gpt-5-mini-developer": "GPT-5 Mini Developer (AtlasCloud)",
+      "google/gemini-2.5-flash": "Gemini 2.5 Flash (AtlasCloud)",
+      "anthropic/claude-3-5-sonnet": "Claude 3.5 Sonnet (AtlasCloud)",
+      "anthropic/claude-3-opus": "Claude 3 Opus (AtlasCloud)",
+      "anthropic/claude-3-haiku": "Claude 3 Haiku (AtlasCloud)",
     };
     return modelNames[modelId] || modelId;
   }
@@ -342,7 +373,10 @@ function App() {
                 />
                 <p className="setting-hint">
                   Press this anywhere to show Samwise with clipboard text.
-                  Examples: CmdOrCtrl+Shift+Space, Alt+Space, CmdOrCtrl+K
+                  <br />
+                  <strong>Recommended (most reliable):</strong> Super+Alt+S, Super+Space, Ctrl+Alt+S
+                  <br />
+                  <strong>Other options:</strong> CmdOrCtrl+Shift+Space, Alt+Space, CmdOrCtrl+K
                 </p>
               </div>
 
@@ -446,6 +480,29 @@ function App() {
 
               <div className="setting-group">
                 <label>
+                  <strong>AtlasCloud API Key</strong>
+                </label>
+                <input
+                  type="password"
+                  className="api-key-input"
+                  placeholder="Your AtlasCloud API key"
+                  value={config.llm.atlascloud_api_key || ""}
+                  onChange={(e) => {
+                    const newConfig = {
+                      ...config,
+                      llm: { ...config.llm, atlascloud_api_key: e.target.value || null }
+                    };
+                    setConfig(newConfig);
+                  }}
+                  onBlur={() => saveConfig(config)}
+                />
+                <p className="setting-hint">
+                  For AtlasCloud models (GPT-5.1, DeepSeek V3.2, GPT-5 Mini Developer, Gemini 2.5 Flash). Get yours at <a href="https://atlascloud.ai" target="_blank">atlascloud.ai</a>
+                </p>
+              </div>
+
+              <div className="setting-group">
+                <label>
                   <strong>Authentication Status</strong>
                 </label>
                 <ul className="auth-status">
@@ -459,6 +516,12 @@ function App() {
                   </li>
                   <li>
                     OpenAI: {config.llm.openai_api_key ?
+                      <span className="status-ok">✓ API Key Set</span> :
+                      <span className="status-warn">⚠ Not Configured</span>
+                    }
+                  </li>
+                  <li>
+                    AtlasCloud: {config.llm.atlascloud_api_key ?
                       <span className="status-ok">✓ API Key Set</span> :
                       <span className="status-warn">⚠ Not Configured</span>
                     }

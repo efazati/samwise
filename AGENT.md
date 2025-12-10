@@ -52,7 +52,7 @@ Stores settings in `~/.config/samwise/config.json` (Linux) or equivalent:
     "claude_cli_model": "claude-3-5-sonnet-20241022"
   },
   "selected_model": "claude-3-5-sonnet",
-  "global_hotkey": "CmdOrCtrl+Shift+Space"
+  "global_hotkey": "Super+Alt+S"
 }
 ```
 
@@ -62,11 +62,17 @@ Registers system-wide keyboard shortcut:
 - Captures clipboard on trigger
 - Shows window with text pre-loaded
 
-### 5. System Tray
-App runs in background with tray icon:
-- Right-click tray: Show/Quit options
-- Window close (X) hides instead of quitting
-- Always available via hotkey
+### 5. Window Management & System Tray
+Smart window behavior:
+- **Closing window** (X button) → Hides window (doesn't quit app)
+- **Quit app** → Use File menu → Quit, or tray icon → Quit
+- **System tray icon** → Shows in taskbar with tooltip showing hotkey
+  - Left-click: Toggle window visibility
+  - Right-click: Menu (Show/Hide/Quit)
+- **Global hotkey** (default: Super+Alt+S) → Toggles window visibility
+  - When hidden → Shows window with clipboard text
+  - When visible → Hides window
+- For i3 users: Scratchpad also works great
 
 ## Development Workflow
 
@@ -172,6 +178,21 @@ cat ~/Library/Application\ Support/com.samwise.app/config.json
 **Actions not working**
 - No LLM configured
 - Solution: Configure Claude CLI or add API keys in Settings
+
+**Empty page/blank window on Linux**
+- Fixed in latest version with proper CSP configuration
+- If still occurring, ensure you're running the latest build
+
+**Using Samwise with i3 Window Manager**
+- System tray works! Uses Tauri's native tray (no snixembed needed)
+- Tray tooltip shows the hotkey: "Samwise - Press Super+Alt+S to toggle"
+- Optional: Use i3 scratchpad for additional quick access:
+  ```bash
+  # Add to ~/.config/i3/config
+  for_window [class="samwise"] move scratchpad
+  bindsym $mod+grave [class="samwise"] scratchpad show
+  ```
+- Both methods work great together!
 
 ## Dependencies
 

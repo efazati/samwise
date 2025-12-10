@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 pub struct LLMConfig {
     pub openai_api_key: Option<String>,
     pub anthropic_api_key: Option<String>,
+    pub atlascloud_api_key: Option<String>,
     pub use_claude_cli: bool,
     pub claude_cli_model: String,
 }
@@ -17,6 +18,7 @@ impl Default for LLMConfig {
         LLMConfig {
             openai_api_key: None,
             anthropic_api_key: None,
+            atlascloud_api_key: None,
             use_claude_cli: true, // Default to CLI if available
             claude_cli_model: "claude-3-5-sonnet-20241022".to_string(),
         }
@@ -35,7 +37,8 @@ impl Default for AppConfig {
         AppConfig {
             llm: LLMConfig::default(),
             selected_model: "claude-3-5-sonnet".to_string(),
-            global_hotkey: "CmdOrCtrl+Shift+Space".to_string(),
+            // Use Super+Alt+S as default - reliable and usually free on most systems
+            global_hotkey: "Super+Alt+S".to_string(),
         }
     }
 }
@@ -53,8 +56,25 @@ impl AppConfig {
         if config_path.exists() {
             match fs::read_to_string(&config_path) {
                 Ok(contents) => {
-                    match serde_json::from_str(&contents) {
-                        Ok(config) => config,
+                    match serde_json::from_str::<AppConfig>(&contents) {
+                        Ok(mut config) => {
+                            // Migrate old default hotkeys to new default
+                            let old_defaults = vec![
+                                "CmdOrCtrl+Shift+Space",
+                                "Ctrl+Shift+Space",
+                                "Super+Space",
+                                "Ctrl+Alt+S",
+                            ];
+                            if old_defaults.contains(&config.global_hotkey.as_str()) {
+                                println!("Migrating hotkey from '{}' to 'Super+Alt+S'", config.global_hotkey);
+                                config.global_hotkey = "Super+Alt+S".to_string();
+                                // Save the migrated config
+                                if let Err(e) = config.save(app) {
+                                    eprintln!("Failed to save migrated config: {}", e);
+                                }
+                            }
+                            config
+                        }
                         Err(e) => {
                             eprintln!("Failed to parse config: {}", e);
                             Self::default()
