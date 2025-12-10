@@ -22,6 +22,9 @@ help:
 	@echo "  make prod         - Alias for build"
 	@echo "  make release      - Build optimized release binary"
 	@echo ""
+	@echo "Release:"
+	@echo "  make tag-release  - Create and push a version tag (triggers CI/CD)"
+	@echo ""
 	@echo "Setup:"
 	@echo "  make setup        - Complete setup (install deps)"
 	@echo "  make install      - Install npm dependencies"
@@ -175,6 +178,27 @@ info:
 .PHONY: start run
 start: dev
 run: dev
+
+# Release management
+.PHONY: tag-release
+tag-release:
+	@echo "🏷️  Creating a new release..."
+	@read -p "Enter version (e.g., 0.2.0): " version; \
+	echo ""; \
+	echo "This will:"; \
+	echo "  1. Create tag v$$version"; \
+	echo "  2. Push to origin"; \
+	echo "  3. Trigger automatic build pipeline"; \
+	echo ""; \
+	read -p "Continue? (y/N): " confirm; \
+	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
+		git tag "v$$version" && \
+		git push origin main && \
+		git push origin "v$$version" && \
+		echo "✅ Release v$$version created! Check GitHub Actions for build progress."; \
+	else \
+		echo "❌ Cancelled."; \
+	fi
 
 # Configuration helpers
 edit-prompts:
