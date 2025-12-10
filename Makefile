@@ -1,7 +1,7 @@
 # Makefile for Samwise
 # A lightweight desktop utility for text transformation with LLMs
 
-.PHONY: help dev build clean install install-deps install-rust check test format lint setup prod release run-frontend kill
+.PHONY: help dev build clean install install-deps install-rust check test format lint setup prod release run-frontend kill edit-prompts show-config
 
 # Default target - show help
 help:
@@ -26,6 +26,10 @@ help:
 	@echo "  make setup        - Complete setup (install deps)"
 	@echo "  make install      - Install npm dependencies"
 	@echo "  make install-rust - Install Rust toolchain"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  make edit-prompts - Open prompts.yaml in editor"
+	@echo "  make show-config  - Show config directory location"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean        - Clean build artifacts"
@@ -171,4 +175,42 @@ info:
 .PHONY: start run
 start: dev
 run: dev
+
+# Configuration helpers
+edit-prompts:
+	@echo "📝 Opening prompts configuration..."
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		CONFIG_DIR="$$HOME/Library/Application Support/samwise"; \
+	elif [ "$(shell uname)" = "Linux" ]; then \
+		CONFIG_DIR="$$HOME/.config/samwise"; \
+	else \
+		CONFIG_DIR="$$APPDATA/samwise"; \
+	fi; \
+	mkdir -p "$$CONFIG_DIR"; \
+	if [ ! -f "$$CONFIG_DIR/prompts.yaml" ]; then \
+		cp prompts.yaml "$$CONFIG_DIR/prompts.yaml"; \
+		echo "✓ Created default prompts.yaml at: $$CONFIG_DIR"; \
+	fi; \
+	echo "Opening: $$CONFIG_DIR/prompts.yaml"; \
+	if command -v code >/dev/null 2>&1; then \
+		code "$$CONFIG_DIR/prompts.yaml"; \
+	elif command -v nano >/dev/null 2>&1; then \
+		nano "$$CONFIG_DIR/prompts.yaml"; \
+	elif command -v vi >/dev/null 2>&1; then \
+		vi "$$CONFIG_DIR/prompts.yaml"; \
+	else \
+		echo "$$CONFIG_DIR/prompts.yaml"; \
+	fi
+
+show-config:
+	@echo "📁 Samwise configuration directory:"
+	@if [ "$(shell uname)" = "Darwin" ]; then \
+		echo "  ~/Library/Application Support/samwise/"; \
+		ls -lh "$$HOME/Library/Application Support/samwise/" 2>/dev/null || echo "  (not created yet)"; \
+	elif [ "$(shell uname)" = "Linux" ]; then \
+		echo "  ~/.config/samwise/"; \
+		ls -lh "$$HOME/.config/samwise/" 2>/dev/null || echo "  (not created yet)"; \
+	else \
+		echo "  %APPDATA%\\samwise\\"; \
+	fi
 

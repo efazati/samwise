@@ -32,9 +32,18 @@ make build
 - **Global Hotkey**: Press `Cmd/Ctrl + Shift + Space` anywhere to activate
 - **Clipboard Integration**: Automatically loads copied text
 - **System Tray**: Runs in background, accessible from tray icon
-- **6 AI Prompts**: Fix Grammar, Improve Text, Summarize, Expand, Simplify, Make Professional
+- **8 AI Prompts**:
+  - Fix Grammar - Perfect spelling and punctuation
+  - Improve Writing - Enhance clarity and flow
+  - Summarize - Extract key points
+  - Expand - Add depth and context
+  - Simplify - Make easily understandable
+  - Make Professional - Business-ready tone
+  - Fact Check - Verify claims and logic
+  - Make Concise - Remove fluff efficiently
 - **Multiple LLMs**: ChatGPT (OpenAI) and Claude (Anthropic)
 - **Claude CLI Support**: Use your Claude.ai subscription (no API key needed)
+- **Customizable Prompts**: Edit prompts.yaml to add your own or modify existing ones
 
 ## How It Works
 
@@ -52,6 +61,35 @@ Workflow:
 6. **Close window**: Hides to tray, ready for next use
 
 ## Configuration
+
+### Custom Prompts
+
+Samwise loads prompts from a YAML file that you can customize:
+
+**Location:**
+- Linux: `~/.config/samwise/prompts.yaml`
+- macOS: `~/Library/Application Support/samwise/prompts.yaml`
+- Windows: `%APPDATA%\samwise\prompts.yaml` (`C:\Users\<username>\AppData\Roaming\samwise\prompts.yaml`)
+
+**Format:**
+```yaml
+prompts:
+  - id: my_custom_prompt
+    name: My Custom Action
+    description: What this action does
+    system_prompt: >
+      Your detailed instruction to the AI here.
+      Can span multiple lines.
+    icon: 🎨
+```
+
+The file is automatically created with default prompts on first run. Edit it to:
+- Add new prompts
+- Modify existing ones
+- Change icons and descriptions
+- Customize system prompts
+
+Restart Samwise after editing to reload prompts.
 
 ### LLM Setup
 

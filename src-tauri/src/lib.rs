@@ -82,6 +82,12 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            // Initialize user config directory and copy default prompts if needed
+            match Prompt::ensure_user_config() {
+                Ok(path) => println!("✓ User prompts config: {:?}", path),
+                Err(e) => eprintln!("⚠ Could not ensure user config: {}", e),
+            }
+
             // Create and set up the menu
             menu::create_menu(app)?;
 
