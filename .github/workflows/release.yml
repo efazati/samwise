@@ -93,9 +93,19 @@ jobs:
 
           cp "$BINARY_SRC" "$ARTIFACT_DIR/$BINARY_NAME"
 
-          # Copy bundle directory if it exists (optional, only created when bundling is enabled)
+          # Copy only final package files if bundle directory exists
           if [ -d "$TARGET_DIR/bundle" ]; then
-            cp -r "$TARGET_DIR/bundle" "$ARTIFACT_DIR/"
+            # Copy macOS bundles
+            find "$TARGET_DIR/bundle/macos" -maxdepth 1 \( -name "*.app" -o -name "*.dmg" \) -exec cp -r {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+
+            # Copy Linux packages
+            find "$TARGET_DIR/bundle/deb" -maxdepth 1 -name "*.deb" -exec cp {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+            find "$TARGET_DIR/bundle/rpm" -maxdepth 1 -name "*.rpm" -exec cp {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+            find "$TARGET_DIR/bundle/appimage" -maxdepth 1 -name "*.AppImage" -exec cp {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+
+            # Copy Windows installers
+            find "$TARGET_DIR/bundle/msi" -maxdepth 1 -name "*.msi" -exec cp {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
+            find "$TARGET_DIR/bundle/nsis" -maxdepth 1 -name "*.exe" -exec cp {} "$ARTIFACT_DIR/" \; 2>/dev/null || true
           fi
 
       - name: Upload artifacts
