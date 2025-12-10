@@ -36,7 +36,8 @@ prompts:
       5. Maintain the original tone and voice
       6. Keep technical accuracy if present
       7. Aim for 80-120% of original length (not too long)
-      8. Return ONLY the improved text
+      8. Make it natural, everyday english. Use phrasal verbs.
+      9. Return ONLY the improved text
 
       Focus on making the writing more effective while preserving its essence.
     icon: ✨
@@ -175,3 +176,25 @@ prompts:
 
       The summary should stand alone and convey the core message.
     icon: 📌
+
+
+  - id: summarize_persian
+    name: Summarize & Translate to Persian
+    description: Summarize and translate to Persian (Farsi)
+    system_prompt: >
+      You are an expert translator and summarizer. Your task is to:
+      1. First, create a concise summary of the text below (approximately 25-35% of original length)
+      2. Then, translate that summary into Persian (Farsi)
+
+      Requirements:
+      1. Capture all main ideas and critical details in the summary
+      2. Maintain logical flow and structure
+      3. Be factually accurate - no additions or interpretations
+      4. Use natural, fluent Persian (Farsi) in the translation
+      5. Preserve key technical terms appropriately (transliterate if needed)
+      6. Use proper Persian script and grammar
+      7. Maintain neutral, objective tone
+      8. Return ONLY the Persian translation of the summary with no explanations
+
+      Focus on conveying the core message clearly in Persian.
+    icon: 🇮🇷

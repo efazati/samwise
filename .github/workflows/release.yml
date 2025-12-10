@@ -9,18 +9,26 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-artifacts:
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: 'macos-latest'
+            os: 'macos'
+            arch: 'aarch64'
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest'
+            os: 'macos'
+            arch: 'x86_64'
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
+            os: 'linux'
+            arch: 'x86_64'
             args: ''
           - platform: 'windows-latest'
+            os: 'windows'
+            arch: 'x86_64'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -44,7 +52,7 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
@@ -52,14 +60,127 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build Tauri app and create release
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [[ -n "${{ matrix.args }}" ]]; then
+            npm run tauri build -- ${{ matrix.args }}
+          else
+            npm run tauri build
+          fi
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT_DIR="artifacts/${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "$ARTIFACT_DIR"
+
+          if [[ "${{ matrix.os }}" == "macos" ]]; then
+            TARGET_DIR="./src-tauri/target/${{ matrix.arch }}-apple-darwin/release"
+          else
+            TARGET_DIR="./src-tauri/target/release"
+          fi
+
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            BINARY_SRC="$TARGET_DIR/samwise.exe"
+            BINARY_NAME="samwise-${{ matrix.os }}-${{ matrix.arch }}.exe"
+          else
+            BINARY_SRC="$TARGET_DIR/samwise"
+            BINARY_NAME="samwise-${{ matrix.os }}-${{ matrix.arch }}"
+          fi
+
+          cp "$BINARY_SRC" "$ARTIFACT_DIR/$BINARY_NAME"
+          cp -r "$TARGET_DIR/bundle" "$ARTIFACT_DIR/"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.arch }}-artifacts
+          path: artifacts/${{ matrix.os }}-${{ matrix.arch }}
+
+  publish:
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Ensure release exists
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Samwise ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download the app for your platform.'
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.args }}
+        run: |
+          set -euxo pipefail
+          TAG="${{ github.ref_name }}"
+          RELEASE_NAME="Samwise ${TAG}"
+          RELEASE_BODY="See the assets below to download the app for your platform."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" \
+              --title "$RELEASE_NAME" \
+              --notes "$RELEASE_BODY"
+          fi
+
+      - name: Upload all artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          TAG="${{ github.ref_name }}"
+          REPO="${{ github.repository }}"
+          find artifacts -type f -print0 | while IFS= read -r -d '' file; do
+            relative=$(realpath --relative-to=artifacts "$file")
+            gh release upload "$TAG" "$file" \
+              --repo "$REPO" \
+              --name "$relative" \
+              --clobber
+          done
+
+      - name: Upload binary artifact (macOS aarch64)
+        if: matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin'
+        run: |
+          cp "./src-tauri/target/aarch64-apple-darwin/release/samwise" "./samwise-${{ github.ref_name }}-aarch64-macos"
+          gh release upload "${{ github.ref_name }}" \
+            "./samwise-${{ github.ref_name }}-aarch64-macos" \
+            --clobber \
+            --repo "${{ github.repository }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload binary artifact (macOS x86_64)
+        if: matrix.platform == 'macos-latest' && matrix.args == '--target x86_64-apple-darwin'
+        run: |
+          cp "./src-tauri/target/x86_64-apple-darwin/release/samwise" "./samwise-${{ github.ref_name }}-x86_64-macos"
+          gh release upload "${{ github.ref_name }}" \
+            "./samwise-${{ github.ref_name }}-x86_64-macos" \
+            --clobber \
+            --repo "${{ github.repository }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload binary artifact (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          cp "./src-tauri/target/release/samwise" "./samwise-${{ github.ref_name }}-x86_64-linux"
+          gh release upload "${{ github.ref_name }}" \
+            "./samwise-${{ github.ref_name }}-x86_64-linux" \
+            --clobber \
+            --repo "${{ github.repository }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload binary artifact (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          copy "./src-tauri/target/release/samwise.exe" "./samwise-${{ github.ref_name }}-x86_64-windows.exe"
+          gh release upload "${{ github.ref_name }}" \
+            "./samwise-${{ github.ref_name }}-x86_64-windows.exe" \
+            --clobber \
+            --repo "${{ github.repository }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
