@@ -11,6 +11,8 @@ pub struct LLMConfig {
     pub atlascloud_api_key: Option<String>,
     pub use_claude_cli: bool,
     pub claude_cli_model: String,
+    #[serde(default)]
+    pub force_atlascloud_for_claude: bool, // Force AtlasCloud API for Claude models (for testing)
 }
 
 impl Default for LLMConfig {
@@ -21,6 +23,7 @@ impl Default for LLMConfig {
             atlascloud_api_key: None,
             use_claude_cli: true, // Default to CLI if available
             claude_cli_model: "claude-3-5-sonnet-20241022".to_string(),
+            force_atlascloud_for_claude: false, // Default to using CLI when available
         }
     }
 }

@@ -17,6 +17,7 @@ interface LLMConfig {
   atlascloud_api_key: string | null;
   use_claude_cli: boolean;
   claude_cli_model: string;
+  force_atlascloud_for_claude?: boolean; // Force AtlasCloud API for Claude models (for testing)
 }
 
 interface AppConfig {
@@ -420,6 +421,32 @@ function App() {
                   </p>
                   <p className="setting-hint">
                     When enabled, Claude models will use the CLI instead of API
+                  </p>
+                </div>
+              )}
+
+              {claudeCliAvailable && config.llm.atlascloud_api_key && (
+                <div className="setting-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={config.llm.force_atlascloud_for_claude || false}
+                      onChange={(e) => {
+                        const newConfig = {
+                          ...config,
+                          llm: { ...config.llm, force_atlascloud_for_claude: e.target.checked }
+                        };
+                        saveConfig(newConfig);
+                      }}
+                    />
+                    {" "}
+                    <strong>Force AtlasCloud API for Claude Models</strong>
+                  </label>
+                  <p className="setting-description">
+                    When enabled, Claude models will use AtlasCloud API even if CLI is available
+                  </p>
+                  <p className="setting-hint">
+                    Useful for testing and comparing results between CLI and AtlasCloud API
                   </p>
                 </div>
               )}

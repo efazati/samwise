@@ -35,6 +35,9 @@ async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result
     let config = AppConfig::load(&app);
     println!("Selected model: {}", config.selected_model);
     println!("Using Claude CLI: {}", config.llm.use_claude_cli);
+    if config.llm.force_atlascloud_for_claude {
+        println!("Force AtlasCloud for Claude: true (will use AtlasCloud API even if CLI is available)");
+    }
 
     // Create LLM client
     let client = LLMClient::new(config.clone());
