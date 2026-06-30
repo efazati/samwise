@@ -11,18 +11,10 @@ interface Prompt {
   icon: string;
 }
 
-interface LLMConfig {
-  openai_api_key: string | null;
-  anthropic_api_key: string | null;
-  atlascloud_api_key: string | null;
-  use_claude_cli: boolean;
-  claude_cli_model: string;
-  force_atlascloud_for_claude?: boolean; // Force AtlasCloud API for Claude models (for testing)
-}
-
 interface AppConfig {
-  llm: LLMConfig;
-  selected_model: string;
+  backend: string; // "claude" or "codex"
+  claude_model: string; // "haiku" | "sonnet" | "opus" | full id
+  codex_model: string; // empty = Codex default
   global_hotkey: string;
 }
 
@@ -32,10 +24,11 @@ function App() {
   const [outputText, setOutputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>("claude-3-5-sonnet");
+  const [selectedBackend, setSelectedBackend] = useState<string>("claude");
   const [showSettings, setShowSettings] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [claudeCliAvailable, setClaudeCliAvailable] = useState(false);
+  const [codexCliAvailable, setCodexCliAvailable] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
   const [showInputStroke, setShowInputStroke] = useState(false);
 
@@ -43,6 +36,7 @@ function App() {
     loadPrompts();
     loadConfig();
     checkClaudeCli();
+    checkCodexCli();
     setupMenuListeners();
   }, []);
 
@@ -52,10 +46,10 @@ function App() {
       setShowSettings(true);
     });
 
-    await listen<string>("llm-selected", async (event) => {
-      const newModel = event.payload;
-      setSelectedModel(newModel);
-      console.log("LLM Model selected:", newModel);
+    await listen<string>("backend-selected", async (event) => {
+      const newBackend = event.payload;
+      setSelectedBackend(newBackend);
+      console.log("Backend selected:", newBackend);
 
       // Save to config - load config first if not already loaded
       let currentConfig = config;
@@ -69,7 +63,7 @@ function App() {
       }
 
       if (currentConfig) {
-        const newConfig = { ...currentConfig, selected_model: newModel };
+        const newConfig = { ...currentConfig, backend: newBackend };
         await saveConfig(newConfig);
       }
     });
@@ -100,7 +94,7 @@ function App() {
     try {
       const loadedConfig = await invoke<AppConfig>("get_config");
       setConfig(loadedConfig);
-      setSelectedModel(loadedConfig.selected_model);
+      setSelectedBackend(loadedConfig.backend);
     } catch (error) {
       console.error("Failed to load config:", error);
     }
@@ -122,6 +116,15 @@ function App() {
       setClaudeCliAvailable(available);
     } catch (error) {
       console.error("Failed to check Claude CLI:", error);
+    }
+  }
+
+  async function checkCodexCli() {
+    try {
+      const available = await invoke<boolean>("check_codex_cli");
+      setCodexCliAvailable(available);
+    } catch (error) {
+      console.error("Failed to check Codex CLI:", error);
     }
   }
 
@@ -225,22 +228,20 @@ function App() {
     }
   }
 
-  function getModelDisplayName(modelId: string): string {
-    const modelNames: Record<string, string> = {
-      "gpt-4": "GPT-4",
-      "gpt-3.5-turbo": "GPT-3.5 Turbo",
-      "claude-3-5-sonnet": "Claude 3.5 Sonnet",
-      "claude-3-opus": "Claude 3 Opus",
-      "claude-3-haiku": "Claude 3 Haiku",
-      "openai/gpt-5.1": "GPT-5.1 (AtlasCloud)",
-      "deepseek-ai/deepseek-v3.2-speciale": "DeepSeek V3.2 (AtlasCloud)",
-      "openai/gpt-5-mini-developer": "GPT-5 Mini Developer (AtlasCloud)",
-      "google/gemini-2.5-flash": "Gemini 2.5 Flash (AtlasCloud)",
-      "anthropic/claude-3-5-sonnet": "Claude 3.5 Sonnet (AtlasCloud)",
-      "anthropic/claude-3-opus": "Claude 3 Opus (AtlasCloud)",
-      "anthropic/claude-3-haiku": "Claude 3 Haiku (AtlasCloud)",
+  function getBackendDisplayName(backend: string): string {
+    const names: Record<string, string> = {
+      claude: "Claude CLI",
+      codex: "Codex",
     };
-    return modelNames[modelId] || modelId;
+    return names[backend] || backend;
+  }
+
+  // The model in use for the active backend, capitalized for display.
+  function getActiveModelLabel(): string {
+    if (!config) return "";
+    const model = selectedBackend === "codex" ? config.codex_model : config.claude_model;
+    if (!model) return "default";
+    return model.charAt(0).toUpperCase() + model.slice(1);
   }
 
   return (
@@ -268,8 +269,10 @@ function App() {
         <div className="prompts-section">
           <div className="sidebar-header">
             <h1>✨ Samwise</h1>
-            <div className="model-indicator" title="Currently selected AI model">
-              <span className="model-name">{getModelDisplayName(selectedModel)}</span>
+            <div className="model-indicator" title="Backend and model in use">
+              <span className="model-name">
+                {getBackendDisplayName(selectedBackend)} · {getActiveModelLabel()}
+              </span>
             </div>
           </div>
 
@@ -389,177 +392,105 @@ function App() {
 
               <div className="setting-group">
                 <label>
-                  <strong>Current Model</strong>
+                  <strong>Backend</strong>
                 </label>
-                <p className="setting-description">
-                  {getModelDisplayName(selectedModel)}
-                </p>
-                <p className="setting-hint">
-                  Use the "LLM Models" menu to change the model.
-                </p>
-              </div>
-
-              {claudeCliAvailable && (
-                <div className="setting-group">
+                <div className="backend-choice">
                   <label>
                     <input
-                      type="checkbox"
-                      checked={config.llm.use_claude_cli}
-                      onChange={(e) => {
-                        const newConfig = {
-                          ...config,
-                          llm: { ...config.llm, use_claude_cli: e.target.checked }
-                        };
-                        saveConfig(newConfig);
+                      type="radio"
+                      name="backend"
+                      value="claude"
+                      checked={selectedBackend === "claude"}
+                      onChange={() => {
+                        setSelectedBackend("claude");
+                        saveConfig({ ...config, backend: "claude" });
                       }}
                     />
-                    {" "}
-                    <strong>Use Claude CLI</strong>
+                    {" "}Claude CLI
                   </label>
-                  <p className="setting-description">
-                    ✅ Claude CLI is installed and available
-                  </p>
-                  <p className="setting-hint">
-                    When enabled, Claude models will use the CLI instead of API
-                  </p>
-                </div>
-              )}
-
-              {claudeCliAvailable && config.llm.atlascloud_api_key && (
-                <div className="setting-group">
                   <label>
                     <input
-                      type="checkbox"
-                      checked={config.llm.force_atlascloud_for_claude || false}
-                      onChange={(e) => {
-                        const newConfig = {
-                          ...config,
-                          llm: { ...config.llm, force_atlascloud_for_claude: e.target.checked }
-                        };
-                        saveConfig(newConfig);
+                      type="radio"
+                      name="backend"
+                      value="codex"
+                      checked={selectedBackend === "codex"}
+                      onChange={() => {
+                        setSelectedBackend("codex");
+                        saveConfig({ ...config, backend: "codex" });
                       }}
                     />
-                    {" "}
-                    <strong>Force AtlasCloud API for Claude Models</strong>
+                    {" "}Codex
                   </label>
-                  <p className="setting-description">
-                    When enabled, Claude models will use AtlasCloud API even if CLI is available
-                  </p>
-                  <p className="setting-hint">
-                    Useful for testing and comparing results between CLI and AtlasCloud API
-                  </p>
                 </div>
-              )}
+                <p className="setting-hint">
+                  You can also switch from the "Backend" menu.
+                </p>
+              </div>
 
-              {!claudeCliAvailable && (
+              {selectedBackend === "claude" && (
                 <div className="setting-group">
                   <label>
-                    <strong>Claude CLI</strong>
+                    <strong>Claude Model</strong>
                   </label>
-                  <p className="setting-description" style={{color: "#ef4444"}}>
-                    ❌ Claude CLI not detected
-                  </p>
+                  <select
+                    className="model-select"
+                    value={config.claude_model}
+                    onChange={(e) => {
+                      saveConfig({ ...config, claude_model: e.target.value });
+                    }}
+                  >
+                    <option value="haiku">Haiku (fastest)</option>
+                    <option value="sonnet">Sonnet (balanced)</option>
+                    <option value="opus">Opus (best)</option>
+                  </select>
                   <p className="setting-hint">
-                    Install with: <code>brew install claude</code>
+                    Haiku is fast and works well for these short edits. Pick Sonnet or Opus for harder text.
+                  </p>
+                </div>
+              )}
+
+              {selectedBackend === "codex" && (
+                <div className="setting-group">
+                  <label>
+                    <strong>Codex Model</strong>
+                  </label>
+                  <input
+                    type="text"
+                    className="api-key-input"
+                    placeholder="Leave empty for Codex default"
+                    value={config.codex_model}
+                    onChange={(e) => {
+                      setConfig({ ...config, codex_model: e.target.value });
+                    }}
+                    onBlur={() => saveConfig(config)}
+                  />
+                  <p className="setting-hint">
+                    Optional. Leave empty to use whatever model Codex is set up with.
                   </p>
                 </div>
               )}
 
               <div className="setting-group">
                 <label>
-                  <strong>OpenAI API Key</strong>
-                </label>
-                <input
-                  type="password"
-                  className="api-key-input"
-                  placeholder="sk-..."
-                  value={config.llm.openai_api_key || ""}
-                  onChange={(e) => {
-                    const newConfig = {
-                      ...config,
-                      llm: { ...config.llm, openai_api_key: e.target.value || null }
-                    };
-                    setConfig(newConfig);
-                  }}
-                  onBlur={() => saveConfig(config)}
-                />
-                <p className="setting-hint">
-                  For GPT-4, GPT-3.5 Turbo. Get yours at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
-                </p>
-              </div>
-
-              <div className="setting-group">
-                <label>
-                  <strong>Anthropic API Key</strong>
-                </label>
-                <input
-                  type="password"
-                  className="api-key-input"
-                  placeholder="sk-ant-..."
-                  value={config.llm.anthropic_api_key || ""}
-                  onChange={(e) => {
-                    const newConfig = {
-                      ...config,
-                      llm: { ...config.llm, anthropic_api_key: e.target.value || null }
-                    };
-                    setConfig(newConfig);
-                  }}
-                  onBlur={() => saveConfig(config)}
-                />
-                <p className="setting-hint">
-                  For Claude models via API. Get yours at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>
-                </p>
-              </div>
-
-              <div className="setting-group">
-                <label>
-                  <strong>AtlasCloud API Key</strong>
-                </label>
-                <input
-                  type="password"
-                  className="api-key-input"
-                  placeholder="Your AtlasCloud API key"
-                  value={config.llm.atlascloud_api_key || ""}
-                  onChange={(e) => {
-                    const newConfig = {
-                      ...config,
-                      llm: { ...config.llm, atlascloud_api_key: e.target.value || null }
-                    };
-                    setConfig(newConfig);
-                  }}
-                  onBlur={() => saveConfig(config)}
-                />
-                <p className="setting-hint">
-                  For AtlasCloud models (GPT-5.1, DeepSeek V3.2, GPT-5 Mini Developer, Gemini 2.5 Flash). Get yours at <a href="https://atlascloud.ai" target="_blank">atlascloud.ai</a>
-                </p>
-              </div>
-
-              <div className="setting-group">
-                <label>
-                  <strong>Authentication Status</strong>
+                  <strong>Backend Status</strong>
                 </label>
                 <ul className="auth-status">
                   <li>
-                    Claude: {claudeCliAvailable && config.llm.use_claude_cli ?
-                      <span className="status-ok">✓ CLI Ready</span> :
-                      config.llm.anthropic_api_key ?
-                      <span className="status-ok">✓ API Key Set</span> :
-                      <span className="status-warn">⚠ Not Configured</span>
+                    Claude CLI: {claudeCliAvailable ?
+                      <span className="status-ok">✓ Installed</span> :
+                      <span className="status-warn">⚠ Not found</span>
                     }
                   </li>
                   <li>
-                    OpenAI: {config.llm.openai_api_key ?
-                      <span className="status-ok">✓ API Key Set</span> :
-                      <span className="status-warn">⚠ Not Configured</span>
-                    }
-                  </li>
-                  <li>
-                    AtlasCloud: {config.llm.atlascloud_api_key ?
-                      <span className="status-ok">✓ API Key Set</span> :
-                      <span className="status-warn">⚠ Not Configured</span>
+                    Codex CLI: {codexCliAvailable ?
+                      <span className="status-ok">✓ Installed</span> :
+                      <span className="status-warn">⚠ Not found</span>
                     }
                   </li>
                 </ul>
+                <p className="setting-hint">
+                  Install Claude with <code>brew install claude</code>, Codex with <code>npm install -g @openai/codex</code>.
+                </p>
               </div>
             </div>
             <div className="modal-footer">

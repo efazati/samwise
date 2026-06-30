@@ -75,9 +75,12 @@ build:
 prod: build
 
 # Build release binary only (no installer)
+# custom-protocol is required, else the app runs in "dev" mode and the window
+# tries to load http://localhost:1420 ("Could not connect to localhost").
 release:
 	@echo "🔨 Building release binary..."
-	@cd src-tauri && cargo build --release
+	@npm run build
+	@cd src-tauri && cargo build --release --features custom-protocol
 
 # Install npm dependencies
 install:

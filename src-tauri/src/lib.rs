@@ -33,14 +33,10 @@ async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result
 
     // Load configuration
     let config = AppConfig::load(&app);
-    println!("Selected model: {}", config.selected_model);
-    println!("Using Claude CLI: {}", config.llm.use_claude_cli);
-    if config.llm.force_atlascloud_for_claude {
-        println!("Force AtlasCloud for Claude: true (will use AtlasCloud API even if CLI is available)");
-    }
+    println!("Backend: {}", config.backend);
 
     // Create LLM client
-    let client = LLMClient::new(config.clone());
+    let client = LLMClient::new();
 
     // Process the text with the selected model asynchronously
     // For "raw" prompt, use empty system prompt to send text directly to LLM
@@ -50,10 +46,16 @@ async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result
         prompt.system_prompt.clone()
     };
     let text_clone = text.clone();
-    let model_id = config.selected_model.clone();
+    let backend = config.backend.clone();
+    // Pick the model for the chosen backend.
+    let model = if backend == "codex" {
+        config.codex_model.clone()
+    } else {
+        config.claude_model.clone()
+    };
 
     let result = tokio::task::spawn_blocking(move || {
-        client.process_text(&prompt_text, &text_clone, &model_id)
+        client.process_text(&prompt_text, &text_clone, &backend, &model)
     }).await.map_err(|e| format!("Task join error: {}", e))?;
 
     // Process the result
@@ -71,9 +73,9 @@ async fn apply_prompt(prompt_id: String, text: String, app: AppHandle) -> Result
                 Original text:\n{}\n\n\
                 Prompt:\n{}\n\n\
                 ℹ️ To fix this:\n\
-                - If using Claude: Make sure Claude CLI is installed (brew install claude)\n\
-                - If using OpenAI: Add your API key in Settings (File → Settings)\n\
-                - Check Settings to configure LLM authentication",
+                - If using Claude: install and sign in to the Claude CLI (brew install claude)\n\
+                - If using Codex: install and sign in to the Codex CLI (npm install -g @openai/codex)\n\
+                - Pick a backend from the Backend menu",
                 e,
                 prompt.name,
                 text,
@@ -228,6 +230,7 @@ pub fn run() {
             config::get_config,
             config::save_config,
             config::check_claude_cli,
+            config::check_codex_cli,
             hotkey::update_global_shortcut
         ])
         .run(tauri::generate_context!())

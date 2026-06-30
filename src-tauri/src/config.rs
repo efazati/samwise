@@ -4,42 +4,38 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LLMConfig {
-    pub openai_api_key: Option<String>,
-    pub anthropic_api_key: Option<String>,
-    pub atlascloud_api_key: Option<String>,
-    pub use_claude_cli: bool,
-    pub claude_cli_model: String,
-    #[serde(default)]
-    pub force_atlascloud_for_claude: bool, // Force AtlasCloud API for Claude models (for testing)
+// The text backend to use. Both are local command-line tools.
+fn default_backend() -> String {
+    "claude".to_string()
 }
 
-impl Default for LLMConfig {
-    fn default() -> Self {
-        LLMConfig {
-            openai_api_key: None,
-            anthropic_api_key: None,
-            atlascloud_api_key: None,
-            use_claude_cli: true, // Default to CLI if available
-            claude_cli_model: "claude-3-5-sonnet-20241022".to_string(),
-            force_atlascloud_for_claude: false, // Default to using CLI when available
-        }
-    }
+// Model passed to the Claude CLI's --model flag. "haiku" is the fast option,
+// which is plenty for these short text edits. Use "sonnet" or "opus" for more
+// quality, or a full model id.
+fn default_claude_model() -> String {
+    "haiku".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    pub llm: LLMConfig,
-    pub selected_model: String,
+    // Which CLI tool runs the text: "claude" or "codex".
+    #[serde(default = "default_backend")]
+    pub backend: String,
+    // Model for the Claude CLI (e.g. "haiku", "sonnet", "opus").
+    #[serde(default = "default_claude_model")]
+    pub claude_model: String,
+    // Model for the Codex CLI. Empty means "use Codex's own default".
+    #[serde(default)]
+    pub codex_model: String,
     pub global_hotkey: String,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
-            llm: LLMConfig::default(),
-            selected_model: "claude-3-5-sonnet".to_string(),
+            backend: default_backend(),
+            claude_model: default_claude_model(),
+            codex_model: String::new(),
             // Use Super+Alt+S as default - reliable and usually free on most systems
             global_hotkey: "Super+Alt+S".to_string(),
         }
@@ -75,6 +71,11 @@ impl AppConfig {
                                 if let Err(e) = config.save(app) {
                                     eprintln!("Failed to save migrated config: {}", e);
                                 }
+                            }
+                            // Old configs may have a model name here. Map anything
+                            // that isn't "codex" back to the "claude" backend.
+                            if config.backend != "claude" && config.backend != "codex" {
+                                config.backend = default_backend();
                             }
                             config
                         }
@@ -119,10 +120,18 @@ pub fn save_config(app: AppHandle, config: AppConfig) -> Result<(), String> {
 
 #[tauri::command]
 pub fn check_claude_cli() -> bool {
-    // Check if Claude CLI is available
-    std::process::Command::new("claude")
+    cli_available("claude")
+}
+
+#[tauri::command]
+pub fn check_codex_cli() -> bool {
+    cli_available("codex")
+}
+
+// True if the given command exists and runs `--version` without error.
+fn cli_available(command: &str) -> bool {
+    std::process::Command::new(command)
         .arg("--version")
         .output()
         .is_ok()
 }
-

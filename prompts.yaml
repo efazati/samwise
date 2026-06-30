@@ -7,194 +7,94 @@ prompts:
 
   - id: fix_grammar
     name: Fix Grammar
-    description: Perfect grammar, spelling, and punctuation
+    description: Fix only grammar, spelling, and punctuation
     system_prompt: >
-      You are an expert editor. Correct all grammar, spelling, punctuation, and
-      typographical errors in the text below. Rules:
-
-      1. Fix errors only - do not change word choice, style, or tone
-      2. Preserve the original voice and intent completely
-      3. Keep all original meaning intact
-      4. Do not add, remove, or rearrange content
-      5. Maintain the same level of formality
-      6. Return ONLY the corrected text with no explanations
-
-      If the text is already perfect, return it unchanged.
+      Fix only the grammar, spelling, and punctuation of the text.
+      Do not reword, rephrase, restructure, or change the style, tone, or
+      vocabulary. Change a word only when it is grammatically wrong.
+      If the text is already correct, return it exactly as it is.
     icon: ✓
 
   - id: improve_text
     name: Improve Writing
-    description: Enhance clarity and readability
+    description: Make it clearer and easier to read
     system_prompt: >
-      You are a writing coach. Improve the text below to make it more clear,
-      engaging, and easier to read. Guidelines:
-
-      1. Enhance clarity by restructuring unclear sentences
-      2. Improve flow and transitions between ideas
-      3. Use strong, precise verbs and concrete nouns
-      4. Remove redundancy and wordiness
-      5. Maintain the original tone and voice
-      6. Keep technical accuracy if present
-      7. Aim for 80-120% of original length (not too long)
-      8. Make it natural, everyday english. Use phrasal verbs.
-      9. Return ONLY the improved text
-
-      Focus on making the writing more effective while preserving its essence.
+      Rewrite the text so it reads more clearly and naturally.
+      Fix awkward phrasing, tighten wordy parts, and improve the flow.
+      Keep the original meaning, tone, and language.
+      Do not add new ideas or change the facts.
     icon: ✨
 
   - id: summarize
     name: Summarize
-    description: Extract key points concisely
+    description: Shorten to the key points
     system_prompt: >
-      You are an expert at distilling information. Create a concise summary of
-      the text below. Requirements:
-
-      1. Capture all main ideas and critical details
-      2. Use approximately 25-35% of the original length
-      3. Maintain logical flow and structure
-      4. Be factually accurate - no additions or interpretations
-      5. Use clear, direct language
-      6. Preserve key technical terms if present
-      7. Maintain neutral, objective tone
-      8. Return ONLY the summary
-
-      Focus on what matters most to understand the core message.
+      Summarize the text in about one third of its length.
+      Keep the main ideas and the important details.
+      Do not add opinions or new information.
     icon: 📝
 
   - id: expand
     name: Expand
-    description: Add depth and context
+    description: Add helpful detail and context
     system_prompt: >
-      You are a content developer. Expand the text below with relevant details,
-      examples, and context. Guidelines:
-
-      1. Add supporting details that enhance understanding
-      2. Include relevant examples or analogies where helpful
-      3. Provide context that clarifies meaning
-      4. Explain technical terms or concepts naturally
-      5. Maintain the original tone and style
-      6. Keep additions focused and relevant
-      7. Aim for 150-200% of original length
-      8. Ensure smooth integration of new content
-      9. Return ONLY the expanded text
-
-      Make the text more comprehensive without unnecessary verbosity.
+      Expand the text with helpful detail, context, and examples.
+      Keep the same tone and meaning.
+      Do not change the original facts or add unrelated ideas.
     icon: 📖
 
   - id: simplify
     name: Simplify
-    description: Make easily understandable
+    description: Make it easy for anyone to read
     system_prompt: >
-      You are an expert at clear communication. Simplify the text below for
-      maximum accessibility. Rules:
-
-      1. Use simple, everyday words (8th-grade reading level)
-      2. Break complex sentences into shorter ones
-      3. Replace jargon with plain language
-      4. Use active voice instead of passive
-      5. Keep paragraphs short (3-4 sentences max)
-      6. Maintain all key information and meaning
-      7. Use concrete examples instead of abstractions
-      8. Return ONLY the simplified text
-
-      Make it clear enough that anyone can understand on first reading.
+      Rewrite the text so it is easy to read at about an 8th-grade level.
+      Use short sentences and simple, everyday words.
+      Keep all the meaning. Do not leave anything important out.
     icon: 💡
 
   - id: professional
     name: Make Professional
-    description: Business-ready formal tone
+    description: Polished, business-ready tone
     system_prompt: >
-      You are a business communications expert. Rewrite the text below in a
-      professional, polished tone suitable for business contexts. Guidelines:
-
-      1. Use formal but not stuffy language
-      2. Maintain clarity - avoid unnecessary complexity
-      3. Be diplomatic and tactful
-      4. Use industry-appropriate terminology
-      5. Structure with clear logic and organization
-      6. Remove casual phrases, slang, or emojis
-      7. Keep confident but respectful tone
-      8. Preserve all key information and intent
-      9. Return ONLY the professional version
-
-      Make it suitable for executive communications, reports, or formal correspondence.
+      Rewrite the text in a polished, professional tone for business use.
+      Keep it clear and direct.
+      Remove slang, casual phrases, and emojis.
+      Keep the original meaning.
     icon: 💼
 
   - id: fact_check
     name: Fact Check
-    description: Verify claims and identify issues
+    description: Check claims and flag problems
     system_prompt: >
-      You are a fact-checker and critical analyst. Analyze the text below for
-      accuracy, logic, and potential issues. Provide:
-
-      1. Factual Claims: List specific claims that can be verified
-      2. Accuracy Assessment: Note which claims seem accurate, questionable, or false
-      3. Logical Issues: Identify any logical fallacies or weak reasoning
-      4. Missing Context: Point out important context that's missing
-      5. Unsupported Assertions: Flag claims without evidence or source
-      6. Bias Detection: Note any apparent bias or one-sided presentation
-      7. Recommendations: Suggest what needs verification or clarification
-
-      Format your response clearly with sections. Be thorough but concise.
-      If the text is factual and well-reasoned, say so.
+      Check the text for factual and logical problems.
+      List each claim, say whether it looks correct, questionable, or wrong,
+      and note anything missing or unsupported.
+      Be brief and clear.
     icon: 🔍
 
   - id: make_concise
     name: Make Concise
-    description: Remove fluff, keep essence
+    description: Cut the fluff, keep the meaning
     system_prompt: >
-      You are an expert editor specializing in concise writing. Make the text
-      below as concise as possible while preserving all essential information.
-
-      1. Remove redundant words, phrases, and ideas
-      2. Eliminate unnecessary qualifiers and modifiers
-      3. Use stronger, more direct language
-      4. Cut filler content and empty phrases
-      5. Combine related ideas efficiently
-      6. Keep all critical information and nuance
-      7. Maintain clarity - don't sacrifice understanding
-      8. Aim for 40-60% of original length
-      9. Return ONLY the concise version
-
-      Every word should earn its place. Be ruthless but preserve meaning.
+      Make the text shorter while keeping every important point.
+      Cut filler, repetition, and weak words.
+      Keep the meaning and tone. Aim for about half the length.
     icon: ⚡
 
   - id: one_line_summary
     name: One Line Summary
     description: Condense to a single sentence
     system_prompt: >
-      You are an expert at distilling information. Summarize the text below into
-      exactly one clear, complete sentence. Requirements:
-
-      1. Capture the main point or essence of the entire text
-      2. Be specific and informative, not vague
-      3. Use clear, direct language
-      4. Make it a grammatically complete sentence
-      5. Keep it concise but comprehensive
-      6. Preserve the most important information
-      7. Return ONLY the one-line summary with no explanations
-
-      The summary should stand alone and convey the core message.
+      Summarize the whole text in one clear, complete sentence.
+      Be specific, not vague.
     icon: 📌
-
 
   - id: summarize_persian
     name: Summarize & Translate to Persian
-    description: Summarize and translate to Persian (Farsi)
+    description: Summarize, then translate to Persian (Farsi)
     system_prompt: >
-      You are an expert translator and summarizer. Your task is to:
-      1. First, create a concise summary of the text below (approximately 25-35% of original length)
-      2. Then, translate that summary into Persian (Farsi)
-
-      Requirements:
-      1. Capture all main ideas and critical details in the summary
-      2. Maintain logical flow and structure
-      3. Be factually accurate - no additions or interpretations
-      4. Use natural, fluent Persian (Farsi) in the translation
-      5. Preserve key technical terms appropriately (transliterate if needed)
-      6. Use proper Persian script and grammar
-      7. Maintain neutral, objective tone
-      8. Return ONLY the Persian translation of the summary with no explanations
-
-      Focus on conveying the core message clearly in Persian.
+      Summarize the text in about one third of its length, then translate that
+      summary into natural, fluent Persian (Farsi).
+      Use correct Persian script and grammar.
+      Return only the Persian summary.
     icon: 🇮🇷

@@ -1,0 +1,225 @@
+---
+description: Samwise developer/agent guide — architecture, workflows, and conventions
+globs:
+alwaysApply: true
+---
+
+# Samwise — Agent/Developer Guide
+
+## Project Overview
+
+Samwise is a cross-platform desktop app (Linux, macOS, Windows) built with Tauri v2 + React + TypeScript. It provides always-available text transformation using AI models via a global hotkey.
+
+## Documentation Policy
+
+- NEVER create new summary files (e.g., SUMMARY.md, IMPLEMENTATION_SUMMARY.md).
+- NEVER create additional README files beyond the main README.md.
+- NEVER create .txt summary files.
+- Keep documentation minimal and focused; only update existing README.md or this rules file when needed.
+- Do not create documentation for every change or feature.
+- Focus on code implementation, not documentation. Prefer working code over extensive docs and keep commit messages concise.
+
+## Architecture
+
+```
+Frontend (React)          Backend (Rust)
+├── src/App.tsx          ├── src-tauri/src/lib.rs        (main logic)
+├── src/App.css          ├── src-tauri/src/prompts.rs    (prompt definitions)
+└── src/main.tsx         ├── src-tauri/src/menu.rs       (menu system)
+                         ├── src-tauri/src/config.rs     (configuration)
+                         ├── src-tauri/src/llm_client.rs (LLM integration)
+                         └── src-tauri/src/hotkey.rs     (global hotkey)
+```
+
+## Key Components
+
+### 1. Prompts System (`prompts.rs`)
+Defines 6 AI prompts: Fix Grammar, Improve Text, Summarize, Expand, Simplify, Make Professional.
+
+**Adding a new prompt** — add to `get_all_prompts()`:
+```rust
+Prompt {
+    id: "translate".to_string(),
+    name: "Translate".to_string(),
+    description: "Translate to another language".to_string(),
+    system_prompt: "Translate the following text...".to_string(),
+    icon: "🌐".to_string(),
+}
+```
+
+### 2. LLM Client (`llm_client.rs`)
+Runs text through one of two local command-line backends:
+- **claude** — the Claude CLI (`claude -p <text> --system-prompt <instructions>`)
+- **codex** — the Codex CLI (`codex exec <prompt>`)
+
+Notes:
+- The backend is chosen by `AppConfig.backend` ("claude" or "codex").
+- Each call runs in a brand-new temp folder (see `make_fresh_dir`) so the CLI
+  keeps no history between calls and nothing bleeds into the next.
+- All output goes through `clean_output`, which trims code fences and replaces
+  every em dash ("—") with a comma. Em dashes must never reach the user.
+
+### 3. Configuration (`config.rs`)
+Stores settings in `~/.config/samwise/config.json` (Linux) or equivalent:
+```json
+{
+  "backend": "claude",
+  "global_hotkey": "Super+Alt+S"
+}
+```
+
+### 4. Global Hotkey (`hotkey.rs`)
+Registers system-wide keyboard shortcut:
+- Default: `Cmd/Ctrl + Shift + Space`
+- Captures clipboard on trigger
+- Shows window with text pre-loaded
+
+### 5. Window Management & System Tray
+- **Closing window** (X button) → Hides window (doesn't quit app)
+- **Quit app** → File menu → Quit, or tray icon → Quit
+- **System tray icon** → Left-click toggles visibility; right-click menu (Show/Hide/Quit)
+- **Global hotkey** (default: Super+Alt+S) → Toggles window visibility
+- For i3 users: Scratchpad also works great
+
+## Development Workflow
+
+### Running the App
+```bash
+make dev          # Development with hot reload
+make build        # Production build
+```
+
+### Adding Features
+
+**New Tauri Command:**
+1. Add to `lib.rs`:
+   ```rust
+   #[tauri::command]
+   fn my_command(param: String) -> Result<String, String> {
+       Ok(format!("Result: {}", param))
+   }
+   ```
+2. Register in `invoke_handler`:
+   ```rust
+   .invoke_handler(tauri::generate_handler![
+       get_prompts,
+       apply_prompt,
+       my_command  // Add here
+   ])
+   ```
+3. Call from React:
+   ```typescript
+   const result = await invoke<string>("my_command", { param: "test" });
+   ```
+
+**New Menu Item:** Edit `menu.rs` → add to `create_menu()` and `handle_menu_event()`.
+
+**New Prompt:** Edit `prompts.rs` → add to `get_all_prompts()` vector.
+
+## Common Tasks
+
+### Change Window Behavior
+Edit `tauri.conf.json`:
+```json
+"windows": [{
+  "width": 1000,
+  "height": 700,
+  "alwaysOnTop": true,
+  "decorations": false
+}]
+```
+
+### Change Default Hotkey
+Edit `config.rs` → `Default::default()` → `global_hotkey` field.
+
+### Add a New Backend
+1. Add a `call_<name>_cli` method in `llm_client.rs` and a match arm in `process_text()`.
+2. Add a menu item in `menu.rs` that emits `backend-selected` with the backend id.
+3. Handle the new id in `App.tsx` (`getBackendDisplayName` and the Settings radios).
+
+## Building for Production
+```bash
+make build
+
+# Output locations:
+# Linux:   src-tauri/target/release/bundle/appimage/
+# macOS:   src-tauri/target/release/bundle/dmg/
+# Windows: src-tauri/target/release/bundle/msi/
+```
+
+## Debugging
+
+- **Rust logs**: Terminal shows `println!` output when running `make dev`.
+- **Frontend logs**: Right-click window → Inspect → Console.
+- **Config file**:
+  ```bash
+  # Linux
+  cat ~/.config/samwise/config.json
+  # macOS
+  cat ~/Library/Application\ Support/com.samwise.app/config.json
+  ```
+
+## Known Issues & Solutions
+
+- **"Hotkey already registered"** — another instance is running. `pkill -f samwise` then restart.
+- **"Failed to execute Claude CLI"** — Claude CLI not installed. `brew install claude`.
+- **Actions not working** — no LLM configured. Configure Claude CLI or add API keys in Settings.
+- **Empty page/blank window on Linux** — fixed in latest version with proper CSP configuration; ensure you're on the latest build.
+- **i3 Window Manager** — native tray works (no snixembed). Optional scratchpad:
+  ```bash
+  # Add to ~/.config/i3/config
+  for_window [class="samwise"] move scratchpad
+  bindsym $mod+grave [class="samwise"] scratchpad show
+  ```
+
+## Dependencies
+
+### Rust Crates
+- `tauri` — Desktop app framework
+- `tauri-plugin-global-shortcut` — System-wide hotkeys
+- `tauri-plugin-clipboard-manager` — Clipboard access
+- `tray-icon` — System tray integration
+- `serde` / `serde_json` — Serialization
+
+### npm Packages
+- `react` / `react-dom` — UI framework
+- `@tauri-apps/api` — Tauri frontend API
+- `vite` — Build tool
+- `typescript` — Type safety
+
+## Project Structure
+```
+samwise/
+├── src/                    # React frontend
+│   ├── App.tsx            # Main UI component
+│   ├── App.css            # Styling
+│   └── main.tsx           # Entry point
+├── src-tauri/             # Rust backend
+│   ├── src/
+│   │   ├── lib.rs         # Main app logic
+│   │   ├── main.rs        # Entry point
+│   │   ├── prompts.rs     # Prompt definitions
+│   │   ├── menu.rs        # Menu system
+│   │   ├── config.rs      # Configuration
+│   │   ├── llm_client.rs  # LLM integration
+│   │   └── hotkey.rs      # Global hotkey
+│   ├── Cargo.toml         # Rust dependencies
+│   └── tauri.conf.json    # Tauri config
+├── Makefile               # Build automation
+└── README.md              # Main project documentation
+```
+
+## Future Enhancements
+- [ ] Streaming LLM responses
+- [ ] Custom prompt management
+- [ ] Prompt history
+- [ ] Direct text replacement (paste back to source app)
+- [ ] Multiple language support
+- [ ] Prompt templates with variables
+- [ ] Keyboard shortcuts for prompts
+- [ ] Window positioning near cursor
+
+## Resources
+- Tauri Docs: https://tauri.app/
+- Tauri Plugins: https://tauri.app/plugin/
+- React Docs: https://react.dev/
